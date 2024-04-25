@@ -1,0 +1,660 @@
+---
+title: "Evolution of growth and size in prokaryotes"
+subtitle: "Dylan Padilla<br>Spring, 2024<br><br><br><br><br>"
+output:
+  xaringan::moon_reader:
+    lib_dir: libs
+    css: ['default', 'default.css']
+    seal: true
+    nature:
+      ratio: '16:9'
+      slideNumberFormat: '%current%' 
+      highlightStyle: ir-black
+      highlightLines: true
+      countIncrementalSlides: true
+---
+
+
+
+```{css, echo = FALSE}
+
+
+
+pre {
+  max-height: 200px;
+  overflow-y: visible;
+  overflow-x: visible;
+  scrollbar-color: #007 #bada55;
+}
+
+pre[class] {
+  max-height: 100px;
+}
+
+
+.scroll-100 {
+  max-height: 100px;
+  overflow-y: visible;
+
+}
+
+
+```
+
+
+```{r}
+
+library(ape)
+library(geiger)
+library(phytools)
+library(lattice)
+library(nlme)
+library(scales)
+library(vioplot)
+
+options(htmltools.dir.version = FALSE)
+# preset code chunk options
+knitr::opts_chunk$set(dpi = 300,            # ensures high resolution images
+                      echo = FALSE,         # FALSE: code chunks don't show
+                      warning = FALSE,      # FALSE: suppresses warning messages
+                      error = FALSE,       # FALSE: Suppresses error messages
+                      fig.align = "center")
+
+
+```
+
+
+# Outline
+
+
+---
+
+
+
+```{r}
+
+tree <- read.tree("spp.tree.nwk")
+tree
+#tree$tip.label
+
+##plotTree(tree, type = "fan", ftype = "off")
+
+
+data <- read.csv("condensed_traits_NCBI.csv")
+str(data)
+names(data)
+
+```
+
+
+
+
+
+```{r}
+
+
+## Motility and cell size
+
+
+spp.d1_lo <- data[!is.na(data$d1_lo), ]
+str(spp.d1_lo)
+length(spp.d1_lo$d1_lo)
+
+spp.d1_up <- data[!is.na(data$d1_up), ]
+str(spp.d1_up)
+length(spp.d1_up$d1_up)
+
+spp.motility <- data[!is.na(data$motility), ]
+str(spp.motility)
+length(spp.motility$motility)
+
+spp.doubling <- data[!is.na(data$doubling_h), ]
+str(spp.doubling)
+length(spp.doubling$doubling_h)
+
+doubling <- aggregate(spp.doubling$doubling_h, by = list(spp.doubling$species), mean, na.action = na.rm)
+#motility <- aggregate(spp.motility$motility, by = list(spp.motility$species), unique, na.action = na.rm)
+d1_up <- aggregate(spp.d1_up$d1_up, by = list(spp.d1_up$species), mean, na.action = na.rm)
+d1_lo <- aggregate(spp.d1_lo$d1_lo, by = list(spp.d1_lo$species), mean, na.action = na.rm)
+
+
+dim(doubling)
+names(doubling) <- c("species", "doubling_h")
+#dim(motility)
+#names(motility) <- c("species", "motility")
+dim(d1_up)
+names(d1_up) <- c("species", "d1_up")
+dim(d1_lo)
+names(d1_lo) <- c("species", "d1_lo")
+
+#class(motility)
+
+mrg.motil <- merge(d1_up, d1_lo, by = "species")
+class(mrg.motil)
+str(mrg.motil)
+head(mrg.motil)
+
+
+obj <- rep()
+for(i in mrg.motil$species){
+    motility <- spp.motility$motility[mrg.motil$species == i][1]
+    obj <- c(obj, motility)
+}
+
+dim(mrg.motil)
+head(obj)
+
+mrg.motil$motility <- obj
+head(mrg.motil)
+unique(mrg.motil$motility)
+
+mrg.motil2 <- merge(mrg.motil, doubling, by = "species")
+str(mrg.motil2)
+head(mrg.motil2)
+dim(mrg.motil2)
+
+```
+
+
+```{r}
+
+## Motility vs cell size
+
+bwplot(d1_up ~ motility, data = mrg.motil)
+
+apen <- c("axial filament", "gliding", "no")
+
+upd.mrg.motil <- mrg.motil[mrg.motil$motility %in% apen, ]
+
+bwplot(d1_up ~ motility, data = upd.mrg.motil)
+
+motil.model <- lm(d1_up ~ motility, data = upd.mrg.motil)
+summary(motil.model)
+
+
+
+## Motility vs doubling
+
+bwplot(log(doubling_h) ~ motility, data = mrg.motil2)
+
+apen <- c("gliding", "no")
+upd.mrg.motil2 <- mrg.motil2[mrg.motil2$motility %in% apen, ]
+
+doub.model <- lm(log(doubling_h) ~ motility, data = upd.mrg.motil2)
+summary(doub.model)
+
+bwplot(log(doubling_h) ~ motility, data = upd.mrg.motil2)
+
+
+
+```
+
+
+
+
+
+```{r}
+
+
+## Temperature vs cell size
+
+spp.d1_lo <- data[!is.na(data$d1_lo), ]
+str(spp.d1_lo)
+length(spp.d1_lo$d1_lo)
+
+spp.d1_up <- data[!is.na(data$d1_up), ]
+str(spp.d1_up)
+length(spp.d1_up$d1_up)
+
+spp.temp <- data[!is.na(data$growth_tmp), ]
+str(spp.temp)
+length(spp.temp$growth_tmp)
+
+spp.doubling <- data[!is.na(data$doubling_h), ]
+str(spp.doubling)
+length(spp.doubling$doubling_h)
+
+doubling <- aggregate(spp.doubling$doubling_h, by = list(spp.doubling$species), mean, na.action = na.rm)
+temp <- aggregate(spp.temp$growth_tmp, by = list(spp.temp$species), mean, na.action = na.rm)
+d1_up <- aggregate(spp.d1_up$d1_up, by = list(spp.d1_up$species), mean, na.action = na.rm)
+d1_lo <- aggregate(spp.d1_lo$d1_lo, by = list(spp.d1_lo$species), mean, na.action = na.rm)
+
+
+dim(doubling)
+names(doubling) <- c("species", "doubling_h")
+dim(temp)
+names(temp) <- c("species", "tmp")
+dim(d1_up)
+names(d1_up) <- c("species", "d1_up")
+dim(d1_lo)
+names(d1_lo) <- c("species", "d1_lo")
+
+
+mrg.tmp <- merge(temp, d1_lo, by = "species")
+class(mrg.tmp)
+str(mrg.tmp)
+head(mrg.tmp)
+
+mrg.tmp2 <- merge(mrg.tmp, d1_up, by = "species")
+str(mrg.tmp2)
+head(mrg.tmp2)
+dim(mrg.tmp2)
+
+obj <- rep()
+for(i in mrg.tmp2$species){
+    kingdom <- unique(data$superkingdom[data$species == i])
+    obj <- c(obj, kingdom)
+}
+
+mrg.tmp2$kingdom <- obj
+head(mrg.tmp2)
+
+
+mrg.tmp3 <- merge(mrg.tmp2, doubling, by = "species")
+str(mrg.tmp3)
+head(mrg.tmp3)
+dim(mrg.tmp3)
+
+
+```
+
+
+```{r}
+
+
+
+## Cell size and temp
+
+
+plot(d1_up ~ log(tmp), log = "y", data = mrg.tmp2, ylab = expression(paste("Cell diameter")~mu*m~(log[10])), xlab = "Growth temperature \u00B0C (log)", las = 1, pch = 21, cex = 1.2, type = "n")
+
+grid(nx = NULL, ny = NULL, col = alpha("lightgray", 0.5), lwd = 1, lty = 2)
+
+par(new = TRUE)
+
+cols <- c(alpha("red", 0.3), alpha("purple", 0.5))[as.numeric(as.factor(mrg.tmp2$kingdom))]
+
+plot(d1_up ~ log(tmp), log = "y", data = mrg.tmp2, xlab = "", ylab = "", las = 1, pch = 21, col = cols, bg = cols, cex = 0.8)
+
+model10 <- lm(d1_up ~ log(tmp), data = mrg.tmp2)
+summary(model10)
+
+x <- seq(min(log(mrg.tmp2$tmp)), max(log(mrg.tmp2$tmp)), length = 30)
+
+lines(x = x, y = (coef(model10)[1] + coef(model10)[2]*x), lwd = 2, col = "black")
+
+
+```
+
+
+```{r}
+
+## Doubling and temp
+
+
+plot(log(doubling_h) ~ log(tmp), data = mrg.tmp3, ylab = "Doubling h (log)", xlab = "Growth temperature \u00B0C (log)", las = 1, pch = 21, bg = alpha("black", 0.3), cex = 1.2, type = "n")
+
+grid(nx = NULL, ny = NULL, col = alpha("lightgray", 0.5), lwd = 1, lty = 2)
+
+par(new = TRUE)
+
+cols2 <- c(alpha("red", 0.3), alpha("purple", 0.5))[as.numeric(as.factor(mrg.tmp3$kingdom))]
+
+plot(log(doubling_h) ~ log(tmp), data = mrg.tmp3, xlab = "", ylab = "", las = 1, pch = 21, col = cols2, bg = cols2, cex = 0.8, axes = FALSE)
+
+model11 <- lm(log(doubling_h) ~ log(tmp), data = mrg.tmp3)
+summary(model11)
+
+x <- seq(min(log(mrg.tmp3$tmp)), max(log(mrg.tmp3$tmp)), length = 30)
+
+lines(x = x, y = (coef(model11)[1] + coef(model11)[2]*x), lwd = 2, col = "black")
+
+
+```
+
+
+
+```{r}
+
+
+layout(matrix(c(0, 0, 0, 0,
+                1, 1, 2, 2,
+                1, 1, 2, 2,
+                0, 0, 0, 0), nrow = 4, ncol = 4, byrow = TRUE))
+
+plot(d1_up ~ log(tmp), log = "y", data = mrg.tmp2, ylab = expression(paste("Cell diameter")~mu*m~(log[10])), xlab = "Growth temperature \u00B0C (log)", las = 1, pch = 21, bg = alpha("black", 0.3), cex = 1.2, type = "n")
+
+grid(nx = NULL, ny = NULL, col = alpha("lightgray", 0.5), lwd = 1, lty = 2)
+
+par(new = TRUE)
+
+plot(d1_up ~ log(tmp), log = "y", data = mrg.tmp2, xlab = "", ylab = "", las = 1, pch = 21, col = cols, bg = cols, cex = 0.8, axes = FALSE)
+
+x <- seq(min(log(mrg.tmp2$tmp)), max(log(mrg.tmp2$tmp)), length = 30)
+
+lines(x = x, y = (coef(model10)[1] + coef(model10)[2]*x), lwd = 2, col = "black")
+
+
+plot(log(doubling_h) ~ log(tmp), data = mrg.tmp3, ylab = "Doubling h (log)", xlab = "Growth temperature \u00B0C (log)", las = 1, pch = 21, bg = alpha("black", 0.3), cex = 1.2, type = "n")
+
+grid(nx = NULL, ny = NULL, col = alpha("lightgray", 0.5), lwd = 1, lty = 2)
+
+par(new = TRUE)
+
+plot(log(doubling_h) ~ log(tmp), data = mrg.tmp3, xlab = "", ylab = "", las = 1, pch = 21, col = cols2, bg = cols2, cex = 0.8, axes = FALSE)
+
+x <- seq(min(log(mrg.tmp3$tmp)), max(log(mrg.tmp3$tmp)), length = 30)
+
+lines(x = x, y = (coef(model11)[1] + coef(model11)[2]*x), lwd = 2, col = "black")
+
+
+```
+
+
+```{r}
+
+
+
+size.growth <- merge(doubling, d1_up, by = "species")
+
+
+obj <- rep()
+for(i in size.growth$species){
+    kingdom <- unique(data$superkingdom[data$species == i])
+    obj <- c(obj, kingdom)
+}
+
+size.growth$kingdom <- obj
+head(size.growth)
+
+size.growth$species <- gsub("[[:punct:]]", "", size.growth$species)
+size.growth$species <- gsub(" ", "_", size.growth$species)
+rownames(size.growth) <- size.growth$species
+head(size.growth$species)
+head(size.growth)
+
+check <- name.check(tree, size.growth)
+rm_phy <- check$tree_not_data
+rm_dat <- check$data_not_tree
+tree.sg <- drop.tip(tree, rm_phy)
+
+sg.dat <- subset(size.growth, subset = size.growth$species %in% tree.sg$tip, select = names(size.growth))
+name.check(tree.sg, sg.dat)
+str(sg.dat)
+
+
+cols3 <- c(alpha("red", 0.3), alpha("purple", 0.5))[as.numeric(as.factor(sg.dat$kingdom))]
+
+plot(log(doubling_h) ~ d1_up, data = sg.dat, xlab = expression(paste("Cell diameter")~mu*m~(log[10])), ylab = "Doubling h (log)", las = 1, pch = 21, bg = alpha("black", 0.3), cex = 1.2, type = "n")
+
+grid(nx = NULL, ny = NULL, col = alpha("lightgray", 0.5), lwd = 1, lty = 2)
+
+par(new = TRUE)
+
+plot(log(doubling_h) ~ d1_up, data = sg.dat, xlab = "", ylab = "", las = 1, pch = 21, col = cols3, bg = cols3, cex = 0.8, axes = FALSE)
+
+model12 <- lm(log(doubling_h) ~ d1_up, data = sg.dat)
+#summary(model12)
+
+model12.1 <- lm(log(doubling_h) ~ d1_up*kingdom, data = sg.dat)
+#summary(model12.1)
+
+model12.2 <- gls(log(doubling_h) ~ d1_up, correlation = corBrownian(phy = tree.sg, form = ~species), data = sg.dat, method = "ML")
+#summary(model12.2)
+
+model12.3 <- gls(log(doubling_h) ~ d1_up*kingdom, correlation = corBrownian(phy = tree.sg, form = ~species), data = sg.dat, method = "ML")
+#summary(model12.3)
+
+x <- seq(min(sg.dat$d1_up), max(sg.dat$d1_up), length = 30)
+
+#lines(x = x, y = (coef(model12.3)[1] + coef(model12.3)[2]*x), lwd = 2, col = "red")
+lines(x = x, y = (coef(model12.2)[1] + coef(model12.2)[2]*x), lwd = 2, col = "black")
+#lines(x = x, y = ((coef(model12.3)[1] + coef(model12.3)[3] + abs(coef(model12.3)[2]) + coef(model12.3)[4])*x), lwd = 2, col = "purple")
+
+legend("topright", legend = levels(as.factor((sg.dat$kingdom))), pch = 16, col = c(alpha("red", 0.3), alpha("purple", 0.5)), bg = c(alpha("red", 0.3), alpha("purple", 0.5)), bty = "n")
+
+
+```
+
+
+```{r}
+
+
+## Optimum temp
+
+
+spp.temp.op <- data[!is.na(data$optimum_tmp), ]
+str(spp.temp.op)
+length(spp.temp.op$optimum_tmp)
+
+temp.op <- aggregate(spp.temp.op$optimum_tmp, by = list(spp.temp.op$species), mean, na.action = na.rm)
+
+dim(temp.op)
+names(temp.op) <- c("species", "tmp.op")
+
+mrg.tmp.op <- merge(temp.op, d1_lo, by = "species")
+class(mrg.tmp.op)
+str(mrg.tmp.op)
+head(mrg.tmp.op)
+
+mrg.tmp.op2 <- merge(mrg.tmp.op, d1_up, by = "species")
+str(mrg.tmp.op2)
+head(mrg.tmp.op2)
+dim(mrg.tmp.op2)
+
+obj <- rep()
+for(i in mrg.tmp.op2$species){
+    kingdom <- unique(data$superkingdom[data$species == i])
+    obj <- c(obj, kingdom)
+}
+
+mrg.tmp.op2$kingdom <- obj
+head(mrg.tmp.op2)
+str(mrg.tmp.op2)
+
+
+mrg.tmp.op2$species <- gsub("[[:punct:]]", "", mrg.tmp.op2$species)
+mrg.tmp.op2$species <- gsub(" ", "_", mrg.tmp.op2$species)
+rownames(mrg.tmp.op2) <- mrg.tmp.op2$species
+head(mrg.tmp.op2$species)
+head(mrg.tmp.op2)
+
+check <- name.check(tree, mrg.tmp.op2)
+rm_phy <- check$tree_not_data
+rm_dat <- check$data_not_tree
+tree.tmp <- drop.tip(tree, rm_phy)
+
+tmp.dat <- subset(mrg.tmp.op2, subset = mrg.tmp.op2$species %in% tree.tmp$tip, select = names(mrg.tmp.op2))
+name.check(tree.tmp, tmp.dat)
+str(tmp.dat)
+head(tmp.dat)
+
+mrg.tmp.op3 <- merge(mrg.tmp.op2, doubling, by = "species")
+str(mrg.tmp.op3)
+head(mrg.tmp.op3)
+dim(mrg.tmp.op3)
+
+```
+
+
+
+```{r}
+
+## Cell size and temp opt
+
+
+plot(d1_up ~ log(tmp.op), log = "y", data = tmp.dat, ylab = expression(paste("Cell diameter")~mu*m~(log[10])), xlab = "Optimum temperature \u00B0C (log)", las = 1, pch = 21, cex = 1.2, type = "n")
+
+grid(nx = NULL, ny = NULL, col = alpha("lightgray", 0.5), lwd = 1, lty = 2)
+
+par(new = TRUE)
+
+cols <- c(alpha("red", 0.3), alpha("purple", 0.5))[as.numeric(as.factor(tmp.dat$kingdom))]
+
+plot(d1_up ~ log(tmp.op), log = "y", data = tmp.dat, xlab = "", ylab = "", las = 1, pch = 21, col = cols, bg = cols, cex = 0.8, axes = FALSE)
+
+model13 <- lm(d1_up ~ log(tmp.op), data = tmp.dat)
+summary(model13)
+
+model13.1 <- gls(d1_up ~ log(tmp.op), correlation = corBrownian(phy = tree.tmp, form = ~species), data = tmp.dat, method = "ML")
+summary(model13.1)
+
+
+x <- seq(min(log(tmp.dat$tmp.op)), max(log(tmp.dat$tmp.op)), length = 30)
+
+lines(x = x, y = (coef(model13.1)[1] + coef(model13.1)[2]*x), lwd = 2, col = "black")
+
+legend("topleft", legend = levels(as.factor((tmp.dat$kingdom))), pch = 16, col = c(alpha("red", 0.3), alpha("purple", 0.5)), bg = c(alpha("red", 0.3), alpha("purple", 0.5)), bty = "n")
+
+
+```
+
+
+```{r}
+
+
+## Doubling and temp
+
+
+plot(log(doubling_h) ~ log(tmp.op), data = mrg.tmp.op3, ylab = "Doubling h (log)", xlab = "Optimum temperature \u00B0C (log)", las = 1, pch = 21, bg = alpha("black", 0.3), cex = 1.2, type = "n")
+
+grid(nx = NULL, ny = NULL, col = alpha("lightgray", 0.5), lwd = 1, lty = 2)
+
+par(new = TRUE)
+
+cols3 <- c(alpha("red", 0.3), alpha("purple", 0.5))[as.numeric(as.factor(mrg.tmp.op3$kingdom))]
+
+plot(log(doubling_h) ~ log(tmp.op), data = mrg.tmp.op3, xlab = "", ylab = "", las = 1, pch = 21, col = cols3, bg = cols3, cex = 0.8, axes = FALSE)
+
+model14 <- lm(log(doubling_h) ~ log(tmp.op), data = mrg.tmp.op3)
+summary(model14)
+
+x <- seq(min(log(mrg.tmp.op3$tmp)), max(log(mrg.tmp.op3$tmp)), length = 30)
+
+lines(x = x, y = (coef(model14)[1] + coef(model14)[2]*x), lwd = 2, col = "black")
+
+legend("bottomleft", legend = levels(as.factor((mrg.tmp3$kingdom))), pch = 16, col = c(alpha("red", 0.3), alpha("purple", 0.5)), bg = c(alpha("red", 0.3), alpha("purple", 0.5)), bty = "n")
+
+
+```
+
+
+```{r}
+
+
+layout(matrix(c(0, 0, 0, 0,
+                1, 1, 2, 2,
+                1, 1, 2, 2,
+                0, 0, 0, 0), nrow = 4, ncol = 4, byrow = TRUE))
+
+## Cell size and temp opt
+
+
+plot(d1_up ~ log(tmp.op), log = "y", data = mrg.tmp.op2, ylab = expression(paste("Cell diameter")~mu*m~(log[10])), xlab = "Optimum temperature \u00B0C (log)", las = 1, pch = 21, cex = 1.2, type = "n")
+
+grid(nx = NULL, ny = NULL, col = alpha("lightgray", 0.5), lwd = 1, lty = 2)
+
+par(new = TRUE)
+
+cols <- c(alpha("red", 0.3), alpha("purple", 0.5))[as.numeric(as.factor(mrg.tmp.op2$kingdom))]
+
+plot(d1_up ~ log(tmp.op), log = "y", data = mrg.tmp.op2, xlab = "", ylab = "", las = 1, pch = 21, col = cols, bg = cols, cex = 0.8, axes = FALSE)
+
+model13 <- lm(d1_up ~ log(tmp.op), data = mrg.tmp.op2)
+summary(model13)
+
+x <- seq(min(log(mrg.tmp.op2$tmp.op)), max(log(mrg.tmp.op2$tmp.op)), length = 30)
+
+lines(x = x, y = (coef(model13)[1] + coef(model13)[2]*x), lwd = 2, col = "black")
+
+legend("topleft", legend = levels(as.factor((mrg.tmp3$kingdom))), pch = 16, col = c(alpha("red", 0.3), alpha("purple", 0.5)), bg = c(alpha("red", 0.3), alpha("purple", 0.5)), bty = "n")
+
+
+## Doubling and temp
+
+
+plot(log(doubling_h) ~ log(tmp.op), data = mrg.tmp.op3, ylab = "Doubling h (log)", xlab = "Optimum temperature \u00B0C (log)", las = 1, pch = 21, bg = alpha("black", 0.3), cex = 1.2, type = "n")
+
+grid(nx = NULL, ny = NULL, col = alpha("lightgray", 0.5), lwd = 1, lty = 2)
+
+par(new = TRUE)
+
+cols3 <- c(alpha("red", 0.3), alpha("purple", 0.5))[as.numeric(as.factor(mrg.tmp.op3$kingdom))]
+
+plot(log(doubling_h) ~ log(tmp.op), data = mrg.tmp.op3, xlab = "", ylab = "", las = 1, pch = 21, col = cols3, bg = cols3, cex = 0.8, axes = FALSE)
+
+model14 <- lm(log(doubling_h) ~ log(tmp.op), data = mrg.tmp.op3)
+summary(model14)
+
+x <- seq(min(log(mrg.tmp.op3$tmp)), max(log(mrg.tmp.op3$tmp)), length = 30)
+
+lines(x = x, y = (coef(model14)[1] + coef(model14)[2]*x), lwd = 2, col = "black")
+
+legend("bottomleft", legend = levels(as.factor((mrg.tmp3$kingdom))), pch = 16, col = c(alpha("red", 0.3), alpha("purple", 0.5)), bg = c(alpha("red", 0.3), alpha("purple", 0.5)), bty = "n")
+
+
+
+
+
+```
+
+
+```{r}
+
+
+## Interaction between temperature and growth
+
+
+hist(mrg.tmp.op3$d1_up, xlim = c(0, 7), main = "", xlab = expression(paste("Cell size")~mu*m~(log[10])), las = 1)
+box()
+
+mean(mrg.tmp.op3$d1_up)
+
+mrg.tmp.op3$col <- rep(NA, nrow(mrg.tmp.op3))
+for(i in 1:nrow(mrg.tmp.op3)){
+    size <- mrg.tmp.op3$d1_up[i]
+
+    if(size > mean(mrg.tmp.op3$d1_up)){
+        mrg.tmp.op3[i, "col"] <- "gray"
+    }
+    if(size < mean(mrg.tmp.op3$d1_up)){
+        mrg.tmp.op3[i, "col"] <- "black"
+    }
+
+}
+
+mrg.tmp.op3$col
+
+```
+
+
+```{r}
+
+## Doubling and temp*cell size
+
+par(mar = c(5, 4, 1.5, 4))
+
+colfunc <- colorRampPalette(c("red", "blue"))
+
+plot(log(doubling_h) ~ log(tmp.op), data = mrg.tmp.op3, ylab = "Doubling h (log)", xlab = "Optimum temperature \u00B0C (log)", las = 1, pch = 21, bg = alpha("black", 0.3), cex = 1.2, type = "n")
+
+grid(nx = NULL, ny = NULL, col = alpha("lightgray", 0.5), lwd = 1, lty = 2)
+
+par(new = TRUE)
+
+plot(log(doubling_h) ~ log(tmp.op), data = mrg.tmp.op3, xlab = "", ylab = "", las = 1, pch = 21, col = colfunc(length(mrg.tmp.op3$d1_up)), bg = colfunc(length(mrg.tmp.op3$d1_up)), cex = 0.8, axes = FALSE)
+
+x <- seq(min(log(mrg.tmp.op3$tmp)), max(log(mrg.tmp.op3$tmp)), length = 30)
+
+lines(x = x, y = (coef(model14)[1] + coef(model14)[2]*x), lwd = 2, col = "black")
+
+par(xpd = TRUE)
+
+legend_image <- as.raster(matrix(colfunc(length(mrg.tmp.op3$d1_up)), ncol = 1))
+rasterImage(legend_image, 4.9, 1, 5, 3)
+text(x = 4.8, y = seq(1, 3, length = 4), labels = seq(min(mrg.tmp.op3$d1_up), max(mrg.tmp.op3$d1_up), length = 4), cex = 0.6)
+text(x = 4.9, y = 3.7, expression(paste("Cell size")), cex = 0.7)
+text(x = 4.9, y = 3.5, expression(mu*m~(log[10])), cex = 0.7)
+
+
+```
