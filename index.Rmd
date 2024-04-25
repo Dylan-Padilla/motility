@@ -147,7 +147,7 @@ background-image: url("imgs/bacteria_colorful.jpeg")
 
 .pull-left[
 <center>
-<img float = "left" src = "imgs/pianka.jpeg"  width = "310" height = "490"><br>Dr Eric Pianka
+<img float = "left" src = "imgs/pianka.png"  width = "310" height = "490"><br>Dr Eric Pianka
 </center>
 
 ]
