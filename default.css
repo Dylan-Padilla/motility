@@ -60,7 +60,7 @@ div.remark-slide-container h3 {
 
 .title-slide {
 	background-color: #fff;
-        background-image: url("imgs/asu_logo.png"), url("imgs/background.JPG");
+        background-image: url("imgs/asu_logo.png"), url("imgs/background.png");
 	background-position: bottom left, right;
 	background-size: 10%, cover;
 	background-repeat: no-repeat, no-repeat;
